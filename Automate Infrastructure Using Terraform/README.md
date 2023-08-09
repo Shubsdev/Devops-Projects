@@ -16,4 +16,5 @@ Then, if you are happy with changes planned, execute terraform apply
 <img width="935" alt="image" src="https://github.com/Shubsdev/Devops-Projects/assets/102925329/fc51b60a-70d2-4bc3-98d8-28b02328e600">
 ![image](https://github.com/Shubsdev/Devops-Projects/assets/102925329/745d160a-2523-4b7c-aae4-c2b7dad3c7b2)
 
+<img width="928" alt="image" src="https://github.com/Shubsdev/Devops-Projects/assets/102925329/4afd99cd-afa8-4565-a135-7da769cf77d8">
 
