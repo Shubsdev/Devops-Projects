@@ -31,6 +31,49 @@ Resource block will create a VPC.
 
 Note: You can change the configuration above to create your VPC in other region that is closer to you. The same applies to all configuration snippets that will follow.
 
+According to our architectural design, we require 6 subnets:
+
+2 public
+2 private for webservers
+2 private for data layer
+
+Let us create the first 2 public subnets.
+
+The main.tf file should look like this 
+
+```
+provider "aws" {
+  region = "us-west-1"
+}
+
+# Create VPC
+resource "aws_vpc" "main" {
+  cidr_block                     = "172.16.0.0/16"
+  enable_dns_support             = "true"
+  enable_dns_hostnames           = "true"
+}
+
+# Create public subnets1
+    resource "aws_subnet" "public1" {
+    vpc_id                     = aws_vpc.main.id
+    cidr_block                 = "172.16.0.0/24"
+    map_public_ip_on_launch    = true
+    availability_zone          = "us-west-1a"
+
+}
+
+# Create public subnet2
+    resource "aws_subnet" "public2" {
+    vpc_id                     = aws_vpc.main.id
+    cidr_block                 = "172.16.1.0/24"
+    map_public_ip_on_launch    = true
+    availability_zone          = "us-west-1b"
+}
+
+```
+
+
+
 The next thing we need to do, is to download necessary plugins for Terraform to work. These plugins are used by providers and provisioners. At this stage, we only have provider in our main.tf file. So, Terraform will just download plugin for AWS provider.
 ![image](https://github.com/Shubsdev/Devops-Projects/assets/102925329/c3073353-a792-4e79-9803-97f6772ab2ab)
 
