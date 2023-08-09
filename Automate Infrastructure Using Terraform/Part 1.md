@@ -44,6 +44,7 @@ The main.tf file should look like this
 ```
 provider "aws" {
   region = "us-west-1"
+  profile = "Your IAM User"
 }
 
 # Create VPC
