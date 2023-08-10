@@ -103,3 +103,187 @@ First, destroy the current infrastructure. Since we are still in development, th
 To destroy whatever has been created run terraform destroy command, and type yes after evaluating the plan.
 
 <img width="928" alt="image" src="https://github.com/Shubsdev/Devops-Projects/assets/102925329/4afd99cd-afa8-4565-a135-7da769cf77d8">
+
+
+
+
+## Fixing problems by code refactoring
+
+Starting with the provider block, declare a variable named region, give it a default value, and update the provider section by referring to the declared variable.
+
+```
+variable "region" {
+        default = "us-west-1"
+    }
+
+    provider "aws" {
+        region = var.region
+    }
+```
+
+We would do the same to cidr value in the vpc block, and all the other arguments.
+
+```
+variable "region" {
+        default = "us-west-1"
+    }
+
+    variable "vpc_cidr" {
+        default = "172.16.0.0/16"
+    }
+
+    variable "enable_dns_support" {
+        default = "true"
+    }
+
+    variable "enable_dns_hostnames" {
+        default ="true" 
+    }
+
+    provider "aws" {
+    region = var.region
+    }
+
+    # Create VPC
+    resource "aws_vpc" "main" {
+    cidr_block                     = var.vpc_cidr
+    enable_dns_support             = var.enable_dns_support 
+    enable_dns_hostnames           = var.enable_dns_support
+
+    }
+```
+
+Terraform has a functionality that allows us to pull data which exposes information to us. Let us fetch Availability zones from AWS, and replace the hard coded value in the subnet’s availability_zone section.
+
+```
+# Get list of availability zones
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+```
+
+To make use of this new data resource, we will need to introduce a count argument in the subnet block
+
+```
+# Create public subnet1
+resource "aws_subnet" "public" { 
+    count                   = 2
+    vpc_id                  = aws_vpc.main.id
+    cidr_block              = "172.16.1.0/24"
+    map_public_ip_on_launch = true
+    availability_zone       = data.aws_availability_zones.available.names[count.index]
+
+}
+```
+
+But we still have a problem. If we run Terraform with this configuration, it may succeed for the first time, but by the time it goes into the second loop, it will fail because we still have cidr_block hard coded. The same cidr_block cannot be created twice within the same VPC. So, we have a little more work to do.
+
+We will introduce a function cidrsubnet() to make this happen. It accepts 3 parameters.
+
+```
+  # Create public subnet1
+  resource "aws_subnet" "public" { 
+      count                   = 2
+      vpc_id                  = aws_vpc.main.id
+      cidr_block              = cidrsubnet(var.vpc_cidr, 4 , count.index)
+      map_public_ip_on_launch = true
+      availability_zone       = data.aws_availability_zones.available.names[count.index]
+
+  }
+```
+We can introuduce length() function, which basically determines the length of a given list, map, or string.
+
+Since data.aws_availability_zones.available.names returns a list like ["us-west-1a", "us-west-1b", "us-west-1c"] we can pass it into a lenght function and get number of the AZs.
+
+Now we can simply update the public subnet block like this
+
+```
+resource "aws_subnet" "public" { 
+    count                   = length(data.aws_availability_zones.available.names)
+    vpc_id                  = aws_vpc.main.id
+    cidr_block              = cidrsubnet(var.vpc_cidr, 4 , count.index)
+    map_public_ip_on_launch = true
+    availability_zone       = data.aws_availability_zones.available.names[count.index]
+
+}
+```
+
+What we have now, is sufficient to create the subnet resource required. But if you observe, it is not satisfying our business requirement of just 2 subnets. The length function will return number 3 to the count argument, but what we actually need is 2. Now, let us fix this.
+
+Declare a variable to store the desired number of public subnets, and set the default value
+
+```
+variable "preferred_number_of_public_subnets" {
+  default = 2
+}
+```
+
+Next, update the count argument with a condition. Terraform needs to check first if there is a desired number of subnets. Otherwise, use the data returned by the lenght function. See how that is presented below.
+
+```
+# Create public subnets
+resource "aws_subnet" "public" {
+  count  = var.preferred_number_of_public_subnets == null ? length(data.aws_availability_zones.available.names) : var.preferred_number_of_public_subnets   
+  vpc_id = aws_vpc.main.id
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4 , count.index)
+  map_public_ip_on_launch = true
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+
+}
+```
+The first part var.preferred_number_of_public_subnets == null checks if the value of the variable is set to null or has some value defined.
+
+The second part ? and length(data.aws_availability_zones.available.names) means, if the first part is true, then use this. In other words, if preferred number of public subnets is null (Or not known) then set the value to the data returned by lenght function.
+
+The third part : and var.preferred_number_of_public_subnets means, if the first condition is false, i.e preferred number of public subnets is not null then set the value to whatever is definied in var.preferred_number_of_public_subnets
+
+Now the entire configuration should now look like this
+
+```
+# Get list of availability zones
+data "aws_availability_zones" "available" {
+state = "available"
+}
+
+variable "region" {
+      default = "us-west-1"
+}
+
+variable "vpc_cidr" {
+    default = "172.16.0.0/16"
+}
+
+variable "enable_dns_support" {
+    default = "true"
+}
+
+variable "enable_dns_hostnames" {
+    default ="true" 
+}
+
+variable "preferred_number_of_public_subnets" {
+      default = 2
+}
+
+provider "aws" {
+  region = var.region
+}
+
+# Create VPC
+resource "aws_vpc" "main" {
+  cidr_block                     = var.vpc_cidr
+  enable_dns_support             = var.enable_dns_support 
+  enable_dns_hostnames           = var.enable_dns_support
+
+}
+
+# Create public subnets
+resource "aws_subnet" "public" {
+  count  = var.preferred_number_of_public_subnets == null ? length(data.aws_availability_zones.available.names) : var.preferred_number_of_public_subnets   
+  vpc_id = aws_vpc.main.id
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4 , count.index)
+  map_public_ip_on_launch = true
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+
+}
+```
