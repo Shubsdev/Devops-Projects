@@ -76,16 +76,30 @@ resource "aws_vpc" "main" {
 
 
 The next thing we need to do, is to download necessary plugins for Terraform to work. These plugins are used by providers and provisioners. At this stage, we only have provider in our main.tf file. So, Terraform will just download plugin for AWS provider.
-![image](https://github.com/Shubsdev/Devops-Projects/assets/102925329/c3073353-a792-4e79-9803-97f6772ab2ab)
+
+Run `terraform init`
+
+<img width="959" alt="image" src="https://github.com/Shubsdev/Devops-Projects/assets/102925329/9087a9c8-5804-47ea-af67-ae791b925db7">
 
 Notice that a new directory has been created: .terraform.... This is where Terraform keeps plugins. Generally, it is safe to delete this folder. It just means that you must execute terraform init again, to download them.
 
-Moving on, let us create the only resource we just defined. aws_vpc. But before we do that, we should check to see what terraform intends to create before we tell it to go ahead and create it.
+we should check to see what terraform intends to create before we tell it to go ahead and create it.
 
-Run terraform plan
+Run `terraform plan`
 
-Then, if you are happy with changes planned, execute terraform apply
 <img width="935" alt="image" src="https://github.com/Shubsdev/Devops-Projects/assets/102925329/fc51b60a-70d2-4bc3-98d8-28b02328e600">
+
+
+Then, if you are happy with changes planned, execute `terraform apply`
+
 ![image](https://github.com/Shubsdev/Devops-Projects/assets/102925329/745d160a-2523-4b7c-aae4-c2b7dad3c7b2)
+
+Observations:
+
+Hard coded values: Remember our best practice hint from the beginning? Both the availability_zone and cidr_block arguments are hard coded. We should always endeavour to make our work dynamic. Multiple Resource Blocks: Notice that we have declared multiple resource blocks for each subnet in the code. This is bad coding practice. We need to create a single resource block that can dynamically create resources without specifying multiple blocks. Now let us improve our code by refactoring it.
+
+First, destroy the current infrastructure. Since we are still in development, this is totally fine. Otherwise, DO NOT DESTROY an infrastructure that has been deployed to production.
+
+To destroy whatever has been created run terraform destroy command, and type yes after evaluating the plan.
 
 <img width="928" alt="image" src="https://github.com/Shubsdev/Devops-Projects/assets/102925329/4afd99cd-afa8-4565-a135-7da769cf77d8">
